@@ -1,0 +1,117 @@
+---
+title: "Analysis for Tooth Growth Experiment"
+author: "NobumasaHayashi"
+date: "8/20/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+## \underline{Overview}
+In this project, the data for tooth growth experiment is investigated by using student t-test in R. Based on the analysis, it is indicated that tooth length increases with the supplement dosage and that delivery method changes the effect on tooth growth, which means that the OJ supplement has greater effect on tooth growth than the VC supplement.
+
+## \underline{Data exploration}
+The "ToothGrowth" data contains the effect of vitamin C on tooth growth in Guinea pigs. The response is the length of odontoblasts, which are cells responsible for tooth growth. Each animal received one of three dosage levels of vitamin C (0.5, 1, and 2 mg/day) by one of two delivery methods, orange juice or ascorbic acid (a form of vitamin C and coded as "VC").   
+In terms of the format, it has a data frame with 60 observations on 3 variables.\
+ [1] len: numeric, Tooth length\
+ [2] supp: factor, Supplement type (VC or OJ)\
+ [3] dose: numeric, Dose in milligrams/day\
+
+The source of the study: Crampton, E. W. (1947). "The growth of the odontoblast of the incisor teeth as a criterion of vitamin C intake of the guinea pig." The Journal of Nutrition, 33(5), 491--504 \ 
+First of all, I would like to provide a quick summary to show the format stated above.
+```{r BasicSummary1}
+#Summary of the data
+library(datasets)
+df<-ToothGrowth
+summary(df)
+
+```
+**Figure** illustrates how the distribution looks like. As **Figure-(A)** indicates that the OJ supplement has generally greater effect on tooth growth, but it is difficult to differentiate. On the other hand, **Figure-B** indicates that the tooth length increases with the increase of the dosage. **Figure-C** relates these two factors (supplement type and dose) with the tooth length. Based on the figures, in the specific case of the VC, the tooth growth increases linearly with the dose. On the other hand, in the case of the OJ, the higher dose (2 mg) has less improvement in tooth growth. However, overall, the OJ supplement induces more tooth growth than VC except for the higher dose (2 mg).     
+```{r BasicSummary2,warning=FALSE,fig.width = 14, fig.height=4}
+#Basic analysis for the data
+library(ggplot2)
+library(patchwork)
+df$supp<-factor(df$supp)
+df$dose<-factor(df$dose)
+
+p1<-qplot(supp,len,data=ToothGrowth,xlab="Supplement type",
+          ylab="Tooth length") + geom_boxplot(aes(fill = supp))
+
+p2<-qplot(dose,len,data=ToothGrowth,xlab="Dose(mg)", 
+          ylab="Tooth length") + geom_boxplot(aes(group = cut_width(dose,0.5)))
+
+p3<-qplot(supp,len,data=ToothGrowth,xlab="Supplement type", 
+          facets=~dose, ylab="Tooth length") + geom_boxplot(aes(fill=supp))
+
+(p1 | p2| p3) +
+  plot_annotation(title = "Figure. Summary of the Toothgrowth data",
+                  tag_levels = "A",
+                  tag_suffix = ")")
+
+```
+
+## \underline{Hypothesis Testing}
+In this project, the assumptions are following;\
+- The variables must be independent and identically distributed (iid.).\
+- Variances of tooth growth are different when using different supplement and dose.\
+- Tooth growth follows are normal distribution.\
+Based on the assumptions above, the following three hypothesis are tested.\
+
+### \underline{Hypothesis for the supplement OJ vs VC}
+Here, our null hypothesis is that there is no difference in tooth growth when using the supplement OJ and VC. $H_{0}:len_{OJ}=len_{VC}$ Then, our alternative hypothesis is that the OJ supplement induces more tooth growth than the VC. $H_{a}:len_{OJ}>len_{VC}$  We will perform a one-tailed independent t-test with unequal variance. The following two value indicate the p-value and the 95% confidence interval. \
+\underline{t-test for OJ vs VC}
+```{r HypoSupplement}
+OJ<-df$len[df$supp=="OJ"]
+VC<-df$len[df$supp=="VC"]
+t.test(OJ, VC, alt="greater", paired = FALSE, 
+       var.equal=FALSE, conf.level = 0.95)$p.value
+t.test(OJ, VC, alt="greater", paired = FALSE, 
+       var.equal=FALSE, conf.level = 0.95)$conf
+```
+As the p-value (0.03032) is less than 0.05 and the confidence interval does not contain zero, then we can reject the null hypothesis. This means that there is approximately 3% of chance of rejecting the true hypothesis. Based on the above analysis, it is indicated that the OJ supplement has a greater effect on tooth growth than the VC supplement. 
+
+### \underline{Hypothesis for the dosage}
+Our null hypothesis is that there is no difference in tooth growth when increasing the dosage of the supplement. $H_{0}:len_{1.0}=len_{0.5}$ Then, our alternative hypothesis is that the higher dosage induces the greater effect on tooth growth. $H_{a}:len_{1.0}>len_{0.5}$ As is the case with the above, a one-tailed independent t-test with unequal variance is performed.\
+\underline{t-test for dosage of 0.5 vs 1.0 mg}
+```{r HypoDosage1}
+Dos05<-df$len[df$dose==0.5]
+Dos10<-df$len[df$dose==1.0]
+Dos20<-df$len[df$dose==2.0]
+t.test(Dos10, Dos05, alt="greater", paired = FALSE, 
+       var.equal=FALSE, conf.level = 0.95)$p.value
+t.test(Dos10, Dos05, alt="greater", paired = FALSE, 
+       var.equal=FALSE, conf.level = 0.95)$conf
+```
+As the p-value (6.3e-8) is less than 0.05 and the confidence interval does not contain zero, then it is indicated that increasing dosage from 0.5 to 1.0 induces the tooth growth. Similarly, the same analysis is performed to 1.0 and 2.0 mg of dosage.\
+\underline{t-test for dosage of 1.0 vs 2.0 mg}
+```{r HypoDosage2}
+t.test(Dos20, Dos10, alt="greater", paired = FALSE, 
+       var.equal=FALSE, conf.level = 0.95)$p.value
+t.test(Dos20, Dos10, alt="greater", paired = FALSE, 
+       var.equal=FALSE, conf.level = 0.95)$conf
+```
+Also, the p-value (9.53e-6) is less than 0.05 and the confidence interval does not contain zero, the null hypothesis can be rejected. Therefore, tooth length generally increases with the supplement dosage.
+
+### \underline{Hypothesis for the supplement OJ vs VC at 2.0 mg}
+Additionally, the difference between OJ and VC supplement on tooth growth for the dosage of 2.0 mg is investigated. Here, our null hypothesis is that there is no difference in tooth growth when using the supplement "for the dosage of 2.0 mg". $H_{0}:len_{OJ2.0}=len_{VC2.0}$ Then, our alternative hypothesis is that the OJ induces the greater or lesser effect on tooth growth for the dosage of 2.0 mg than the VC. $H_{a}:len_{OJ2.0}>len_{VC2.0}, orlen_{OJ2.0}<len_{VC2.0}$ On purpose to differentiate them, a two-sided independent t-test with unequal variance is performed.\
+\underline{t-test for OJ vs VC for dosage 2.0 mg}
+```{r HypoSupDos2}
+OJ20<-df$len[df$supp=="OJ" & df$dose==2]
+VC20<-df$len[df$supp=="VC" & df$dose==2]
+t.test(OJ20, VC20, alt="two.sided", paired = FALSE, 
+       var.equal=FALSE, conf.level = 0.95)$p.value
+t.test(OJ20, VC20, alt="two.sided", paired = FALSE, 
+       var.equal=FALSE, conf.level = 0.95)$conf
+```
+The p-value is much larger than 0.05 and confidence interval contains zero, we failed to reject the null hypothesis. As we suspected before, the results indicate that there is no difference between OJ and VC supplement on tooth growth for the dosage of 2.0 mg. 
+
+## \underline{Conclusion}
+In this project, it is assumed that the populations are independent, the variances between populations are different, a random population was used. Based on the analysis, it is indicated that there is a significant difference between tooth length for different dosages and supplement delivery methods. A higher dosage level led to longer teeth, rejecting the null hypothesis. Generally, the OJ supplement induces greater effect on tooth growth than the VC supplement. However, in the specific case for the dosage of 2.0 mg, there is no difference between the OJ and VC supplement. In conclusion, the delivery method and the dosage of Vitamin C changes the tooth growth in guinea pigs. 
+
+\pagebreak
+
+
+##  \underline{Appendix: All code for this report}
+```{r ref.label=knitr::all_labels(), echo=TRUE, eval =FALSE}
+```
